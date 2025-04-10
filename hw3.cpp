@@ -34,39 +34,34 @@ void myFastestMeanFilter(IplImage *src, IplImage *dst, int K) {
 	const int sizeY = src->height;
 
 	// 전체 픽셀에 대하여 채널별로 bright 값 저장
-	int **blue  = (int **)malloc(sizeY * sizeof(int *));
-	int **green = (int **)malloc(sizeY * sizeof(int *));
-	int **red   = (int **)malloc(sizeY * sizeof(int *));
-	for (int i = 0; i < sizeY; i++) {
-		blue[i]  = (int *)calloc(sizeX, sizeof(int));
-		green[i] = (int *)calloc(sizeX, sizeof(int));
-		red[i]   = (int *)calloc(sizeX, sizeof(int));
-	}
+
+
+	CvScalar **prefix = (CvScalar **)malloc(sizeY * sizeof(CvScalar *));
+	for (int i = 0; i < sizeY; i++)
+		prefix[i] = (CvScalar *)malloc(sizeX * sizeof(CvScalar));
 
 	// 전체 픽셀에 대한 누적합 계산
 	for (int y = 0;  y  < src->height; y++)
 		for (int x = 0; x < src->width; x++) {
 			CvScalar f = cvGet2D(src, y, x);
 			// 현재 픽셀 값 저장
-			blue[y][x] = (int)f.val[0];
-			green[y][x] = (int)f.val[1];
-			red[y][x] = (int)f.val[2];
+			prefix[y][x] = cvGet2D(src, y, x);
 
 			// 좌상단->우하단 방향으로 픽셀 이동 진행			
 			if (y > 0) {
-				blue[y][x]  += blue[y - 1][x];
-				green[y][x] += green[y - 1][x];
-				red[y][x]   += red[y - 1][x];
+				prefix[y][x].val[0] += prefix[y - 1][x].val[0];
+				prefix[y][x].val[1] += prefix[y - 1][x].val[1];
+				prefix[y][x].val[2] += prefix[y - 1][x].val[2];
 			}
 			if (x > 0) {
-				blue[y][x]  += blue[y][x - 1];
-				green[y][x] += green[y][x - 1];
-				red[y][x]   += red[y][x - 1];
+				prefix[y][x].val[0] += prefix[y][x - 1].val[0];
+				prefix[y][x].val[1] += prefix[y][x - 1].val[1];
+				prefix[y][x].val[2] += prefix[y][x - 1].val[2];
 			}
 			if (y > 0 && x > 0) {
-				blue[y][x]  -= blue[y - 1][x - 1];
-				green[y][x] -= green[y - 1][x - 1];
-				red[y][x]   -= red[y - 1][x - 1];	
+				prefix[y][x].val[0] -= prefix[y - 1][x - 1].val[0];
+				prefix[y][x].val[1] -= prefix[y - 1][x - 1].val[1];
+				prefix[y][x].val[2] -= prefix[y - 1][x - 1].val[2];
 			}
 		}
 	// filtering
@@ -86,27 +81,26 @@ void myFastestMeanFilter(IplImage *src, IplImage *dst, int K) {
 			// 실제 윈도우 크기
 			const int valid = (x2 - x1 + 1) * (y2 - y1 + 1);
 			
-
 			// window 에서 우하단 픽셀값
-			int b = blue[y2][x2];
-			int g = green[y2][x2];
-			int r = red[y2][x2];
+			double b = prefix[y2][x2].val[0];
+			double g = prefix[y2][x2].val[1];
+			double r = prefix[y2][x2].val[2];
 
 			// SAT
 			if (x1 > 0) {
-				b -= blue[y2][x1 - 1];
-				g -= green[y2][x1 - 1];
-				r -= red[y2][x1 - 1];
+				b -= prefix[y2][x1 - 1].val[0];
+				g -= prefix[y2][x1 - 1].val[1];
+				r -= prefix[y2][x1 - 1].val[2];
 			}
 			if (y1 > 0) {
-				b -= blue[y1 - 1][x2];
-				g -= green[y1 - 1][x2];
-				r -= red[y1 - 1][x2];
+				b -= prefix[y1 - 1][x2].val[0];
+				g -= prefix[y1 - 1][x2].val[1];
+				r -= prefix[y1 - 1][x2].val[2];
 			}
 			if (x1 > 0 && y1 > 0) {
-				b += blue[y1 - 1][x1 - 1];
-				g += green[y1 - 1][x1 - 1];
-				r += red[y1 - 1][x1 - 1];
+				b += prefix[y1 - 1][x1 - 1].val[0];
+				g += prefix[y1 - 1][x1 - 1].val[1];
+				r += prefix[y1 - 1][x1 - 1].val[2];
 			}
 
 			// 평균값으로 이미지 채우기
