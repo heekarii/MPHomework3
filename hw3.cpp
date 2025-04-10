@@ -22,7 +22,7 @@ int main() {
 	long start = clock();
 	myFastestMeanFilter(src, dst, K);
 	long end = clock();
-	printf("%f sec", (end - start) / (double) 1000);
+	printf("%.2f sec", (end - start) / (double) 1000);
 	cvShowImage("src", src);
 	cvShowImage("dst", dst);
 	cvWaitKey();
@@ -30,7 +30,6 @@ int main() {
 }
 
 void myFastestMeanFilter(IplImage *src, IplImage *dst, int K) {
-	const int SIZE = (2 * K + 1) * (2 * K + 1);
 	const int sizeX = src->width;
 	const int sizeY = src->height;
 
@@ -71,13 +70,22 @@ void myFastestMeanFilter(IplImage *src, IplImage *dst, int K) {
 			}
 		}
 	// filtering
-	for (int y = K; y < src->height - K; y++)
-		for (int x = K; x < src->width - K; x++) {
+	for (int y = 0; y < src->height; y++)
+		for (int x = 0; x < src->width; x++) {
 			// kernel size 범위
 			int x1 = x - K;
 			int y1 = y - K;
 			int x2 = x + K;
 			int y2 = y + K;
+
+			// 테두리의 padding을 제거하기 위한 과정(유효하지 않은 값을 가질 경우 유효한 값으로 바꿔주었음)
+			if (x1 < 0)						x1 = 0;
+			if (y1 < 0)						y1 = 0;
+			if (x2 > src->width - 1)		x2 = src->width - 1;
+			if (y2 > src->height - 1)		y2 = src->height - 1;
+			// 실제 윈도우 크기
+			const int valid = (x2 - x1 + 1) * (y2 - y1 + 1);
+			
 
 			// window 에서 우하단 픽셀값
 			int b = blue[y2][x2];
@@ -102,9 +110,7 @@ void myFastestMeanFilter(IplImage *src, IplImage *dst, int K) {
 			}
 
 			// 평균값으로 이미지 채우기
-			CvScalar mean = cvScalar(b / SIZE, g / SIZE, r / SIZE);
+			CvScalar mean = cvScalar(b / valid, g / valid, r / valid);
 			cvSet2D(dst, y, x, mean);
 		}
-
-
 }
